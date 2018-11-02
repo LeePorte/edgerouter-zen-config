@@ -1,0 +1,335 @@
+firewall {
+    all-ping enable
+    broadcast-ping disable
+    
+    ipv6-name WAN6-in {
+        default-action drop
+        description "Internet to internal networks"
+        rule 1 {
+            action accept
+            description "Allow established/related"
+            log disable
+            state {
+                established enable
+                related enable
+            }
+        }
+        rule 2 {
+            action drop
+            description "Drop invalid state"
+            log disable
+            state {
+                invalid enable
+            }
+        }
+    }
+    ipv6-name WAN6-local {
+        default-action drop
+        description "Internet to router"
+        rule 1 {
+            action accept
+            description "Allow established/related"
+            log disable
+            state {
+                established enable
+                related enable
+            }
+        }
+        rule 2 {
+            action drop
+            description "Drop invalid state"
+            log disable
+            state {
+                invalid enable
+            }
+        }
+        rule 3 {
+            action accept
+            description "Allow ICMPv6"
+            protocol icmpv6
+        }
+        rule 4 {
+            action accept
+            description "Allow DHCPv6 Client/Server"
+            destination {
+                port 546
+            }
+            protocol udp
+            source {
+                port 547
+            }
+        }
+        rule 5 {
+            action accept
+            description "Allow PPTP"
+            destination {
+                port 1723
+            }
+            protocol tcp
+        }
+        rule 6 {
+            action accept
+            description "Allow GRE for PPTP VPN"
+            protocol gre
+        }
+    }
+    ipv6-receive-redirects disable
+    ipv6-src-route disable
+    ip-src-route disable
+    log-martians enable
+    name WAN_IN {
+        default-action drop
+        description ""
+        enable-default-log
+        rule 1 {
+            action accept
+            description "Allow established/related"
+            log enable
+            state {
+                established enable
+                related enable
+            }
+        }
+        rule 2 {
+            action drop
+            description "Drop invalid state"
+            log enable
+            state {
+                invalid enable
+            }
+        }
+    }
+    name WAN_LOCAL {
+        default-action drop
+        description ""
+        rule 10 {
+            action accept
+            description "Allow established/related"
+            state {
+                established enable
+                related enable
+            }
+        }
+        rule 20 {
+            action drop
+            description "Drop invalid state"
+            state {
+                invalid enable
+            }
+        }
+    }
+    options {
+        mss-clamp {
+            mss 1412
+        }
+    }
+    receive-redirects disable
+    send-redirects enable
+    source-validation disable
+    syn-cookies enable
+}
+interfaces {
+    ethernet eth0 {
+        address <ip address>/24
+        description LAN
+        duplex auto
+        ipv6 {
+            address {
+            }
+            dup-addr-detect-transmits 1
+            router-advert {
+                cur-hop-limit 64
+                link-mtu 0
+                managed-flag true
+                max-interval 600
+                name-server <ipv6 dns server 1>
+                name-server <ipv6 dns server 2>
+                other-config-flag false
+                prefix ::/48 {
+                    autonomous-flag true
+                    on-link-flag true
+                    valid-lifetime 2592000
+                }
+                reachable-time 0
+                retrans-timer 0
+                send-advert true
+            }
+        }
+        speed auto
+    }
+    ethernet eth1 {
+        description "Internet (PPPoE)"
+        dhcp-options {
+            default-route update
+            default-route-distance 210
+            name-server no-update
+        }
+        duplex full
+        firewall {
+            in {
+                
+            }
+        }
+        pppoe 0 {
+            default-route auto
+            dhcpv6-pd {
+                pd 0 {
+                    interface eth0 {
+                        host-address ::1
+                        prefix-id :0
+                        service slaac
+                    }
+                    interface eth2 {
+                        host-address ::1
+                        prefix-id :1
+                        service slaac
+                    }
+                    prefix-length /48
+                }
+                rapid-commit enable
+            }
+            firewall {
+                in {
+                    ipv6-name WAN6-in
+                    name WAN_IN
+                }
+                local {
+                    ipv6-name WAN6-local
+                    name WAN_LOCAL
+                }
+            }
+            ipv6 {
+                address {
+                    autoconf
+                }
+                dup-addr-detect-transmits 1
+                enable {
+                }
+            }
+            mtu 1492
+            name-server auto
+            password <password>
+            user-id <username>
+        }
+        speed 100
+    }
+    ethernet eth2 {
+        address <ip address>/24
+        description "Local 2"
+        duplex auto
+        ipv6 {
+            dup-addr-detect-transmits 1
+            router-advert {
+                cur-hop-limit 64
+                link-mtu 0
+                managed-flag true
+                max-interval 600
+                other-config-flag false
+                prefix ::/48 {
+                    autonomous-flag true
+                    on-link-flag true
+                    valid-lifetime 2592000
+                }
+                reachable-time 0
+                retrans-timer 0
+                send-advert true
+            }
+        }
+        speed auto
+    }
+    ethernet eth3 {
+        duplex auto
+        speed auto
+    }
+    loopback lo {
+    }
+}
+port-forward {
+    auto-firewall enable
+    hairpin-nat enable
+    lan-interface eth0
+    wan-interface pppoe0
+}
+service {
+    dns {
+        forwarding {
+            cache-size 150
+            listen-on eth0
+            listen-on eth2
+            name-server 8.8.8.8
+            name-server 8.8.4.4
+        }
+    }
+    gui {
+        cert-file /config/ssl/server.pem
+        http-port 80
+        https-port 443
+        older-ciphers disable
+    }
+    nat {
+        rule 5010 {
+            outbound-interface pppoe0
+            type masquerade
+        }
+    }
+    ssh {
+        port 22
+        protocol-version v2
+    }
+    unms {
+        disable
+    }
+}
+system {
+    domain-name 
+    host-name ubnt
+    login {
+        user ubnt {
+            authentication {
+                encrypted-password 
+                plaintext-password <plaintest password>
+            }
+            full-name ""
+            level admin
+        }
+    }
+    name-server 8.8.8.8
+    ntp {
+        server 0.ubnt.pool.ntp.org {
+        }
+        server 1.ubnt.pool.ntp.org {
+        }
+        server 2.ubnt.pool.ntp.org {
+        }
+        server 3.ubnt.pool.ntp.org {
+        }
+    }
+    offload {
+        hwnat disable
+        ipv4 {
+            forwarding enable
+            gre enable
+            pppoe enable
+            vlan enable
+        }
+    }
+    packet-rx-core-num all
+    syslog {
+        global {
+            facility all {
+                level notice
+            }
+            facility protocols {
+                level debug
+            }
+        }
+    }
+    task-scheduler {
+        }
+    time-zone UTC
+    traffic-analysis {
+        dpi enable
+        export enable
+    }
+}
+
