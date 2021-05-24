@@ -22,6 +22,12 @@ firewall {
                 invalid enable
             }
         }
+        rule 3 {
+            action accept
+            description "Allow ICMPv6"
+            log disable
+            protocol icmpv6
+        }
     }
     ipv6-name WAN6-local {
         default-action drop
@@ -58,19 +64,6 @@ firewall {
             source {
                 port 547
             }
-        }
-        rule 5 {
-            action accept
-            description "Allow PPTP"
-            destination {
-                port 1723
-            }
-            protocol tcp
-        }
-        rule 6 {
-            action accept
-            description "Allow GRE for PPTP VPN"
-            protocol gre
         }
     }
     ipv6-receive-redirects disable
